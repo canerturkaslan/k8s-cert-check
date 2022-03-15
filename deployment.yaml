@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: check-cert
+  name: k8s-check-cert
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: check-cert
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: check-cert
+    spec:
+      containers:
+      - command:
+        - /bin/sh
+        - -ec
+        - while :; do /check_cert_date.sh /etc/kubernetes/pki; sleep 60 ; done
+        image: k8s_check_certs_date:1.0
+        imagePullPolicy: Never
+        name: k8s-check-certs
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/kubernetes/pki
+          name: certs-mount-dir
+        - mountPath: /root
+          name: script-output
+      dnsPolicy: ClusterFirst
+      nodeName: master-1
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      volumes:
+      - hostPath:
+          path: /etc/kubernetes/pki
+          type: Directory
+        name: certs-mount-dir
+      - hostPath:
+          path: /root/output
+          type: Directory
+        name: script-output
